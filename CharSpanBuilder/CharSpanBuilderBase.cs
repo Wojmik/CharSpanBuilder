@@ -5,22 +5,43 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 {
 	public abstract class CharSpanBuilderBase
 	{
-		protected Memory<char> Buffer;
+		public int Length { get; protected set; }
 
-		public int Length { get; set; }
+		public abstract ReadOnlyMemory<char> AsMemory();
 
-		public CharSpanBuilderBase(Memory<char> buffer)
-		{
-			this.Buffer=buffer;
-		}
+		/// <summary>
+		/// Method should return free part of buffer as <see cref="Span{T}"/>
+		/// </summary>
+		/// <returns>Free part of buffer as <see cref="Span{T}"/></returns>
+		protected abstract Span<char> GetFreeSpan();
 
 		protected abstract void ReallocateBuffer(int minNewSize);
+
+		public void Clear()
+		{
+			Length=0;
+		}
+
+		public string ToString(int startIndex, int length)
+		{
+			return new string(AsMemory().Span.Slice(startIndex, length));
+		}
+
+		public override string ToString()
+		{
+			return ToString(0, Length);
+		}
+
+		public void AppendLine()
+		{
+			Append(Environment.NewLine);
+		}
 
 		public void Append(bool value)
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written))
+			while(!value.TryFormat(GetFreeSpan(), out written))
 			{
 				ReallocateBuffer(Length+5);
 			}
@@ -29,17 +50,25 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 
 		public void Append(char value)
 		{
-			if(Length>=Buffer.Length)
+			Span<char> freeBuffer = GetFreeSpan();
+			if(freeBuffer.IsEmpty)
+			{
 				ReallocateBuffer(Length+1);
-			Buffer.Span[Length]=value;
+				freeBuffer = GetFreeSpan();
+			}
+			freeBuffer[0]=value;
 			Length++;
 		}
 
 		public void Append(char value, int repeatCount)
 		{
-			if(Length+repeatCount>Buffer.Length)
+			Span<char> freeBuffer = GetFreeSpan();
+			if(freeBuffer.Length<repeatCount)
+			{
 				ReallocateBuffer(Length+repeatCount);
-			Buffer.Span.Slice(Length, repeatCount).Fill(value);
+				freeBuffer = GetFreeSpan();
+			}
+			freeBuffer.Slice(0, repeatCount).Fill(value);
 			Length+=repeatCount;
 		}
 
@@ -47,7 +76,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -58,7 +87,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -69,7 +98,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -80,7 +109,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -91,7 +120,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -102,7 +131,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -113,7 +142,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -124,7 +153,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -135,7 +164,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -146,7 +175,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
 			{
 				ReallocateBuffer(0);
 			}
@@ -157,7 +186,40 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format, provider))
+			while(!value.TryFormat(GetFreeSpan(), out written, format, provider))
+			{
+				ReallocateBuffer(0);
+			}
+			Length+=written;
+		}
+
+		public void Append(DateTime value, ReadOnlySpan<char> format = default)
+		{
+			int written;
+
+			while(!value.TryFormat(GetFreeSpan(), out written, format))
+			{
+				ReallocateBuffer(0);
+			}
+			Length+=written;
+		}
+
+		public void Append(TimeSpan value, ReadOnlySpan<char> format = default)
+		{
+			int written;
+
+			while(!value.TryFormat(GetFreeSpan(), out written, format))
+			{
+				ReallocateBuffer(0);
+			}
+			Length+=written;
+		}
+
+		public void Append(DateTimeOffset value, ReadOnlySpan<char> format = default)
+		{
+			int written;
+
+			while(!value.TryFormat(GetFreeSpan(), out written, format))
 			{
 				ReallocateBuffer(0);
 			}
@@ -168,7 +230,7 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 		{
 			int written;
 
-			while(!value.TryFormat(Buffer.Span.Slice(Length), out written, format))
+			while(!value.TryFormat(GetFreeSpan(), out written, format))
 			{
 				ReallocateBuffer(0);
 			}
@@ -192,10 +254,10 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 
 		public void Append(ReadOnlySpan<char> value)
 		{
-			if(!value.TryCopyTo(Buffer.Span.Slice(Length)))
+			if(!value.TryCopyTo(GetFreeSpan()))
 			{
 				ReallocateBuffer(Length+value.Length);
-				value.CopyTo(Buffer.Span.Slice(Length));
+				value.CopyTo(GetFreeSpan());
 			}
 			Length+=value.Length;
 		}
@@ -207,9 +269,13 @@ namespace WojciechMikołajewicz.CharSpanBuilder
 
 		public void Append(StringBuilder value, int start, int length)
 		{
-			if(Length+length>Buffer.Length)
+			Span<char> freeBuffer = GetFreeSpan();
+			if(freeBuffer.Length<length)
+			{
 				ReallocateBuffer(Length+length);
-			value.CopyTo(start, Buffer.Span.Slice(Length), length);
+				freeBuffer = GetFreeSpan();
+			}
+			value.CopyTo(start, freeBuffer, length);
 			Length+=length;
 		}
 	}
